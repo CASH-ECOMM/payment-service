@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.paymentservice.grpc";
+option java_outer_classname = "PaymentServiceProto";
+
+service PaymentGrpcService {
+  rpc ProcessPayment (PaymentRequest) returns (PaymentResponse);
+}
+
+message PaymentRequest {
+  int64 userId = 1;
+  int64 itemId = 2;
+  double amount = 3;
+}
+
+message PaymentResponse {
+  string status = 1;     // e.g., "COMPLETED"
+  string message = 2;    // e.g., "Payment successful"
+  int64 paymentId = 3;   // From DB
+}

@@ -8,6 +8,24 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+/**
+ * Implementation of the {@link PaymentService} interface that handles payment processing logic.
+ *
+ * <p>This service ensures that a payment is only processed if it is valid (e.g., no duplicate payments).
+ * It uses a {@link PaymentValidationService} to verify the eligibility of an item for payment
+ * and then persists the payment data through the {@link PaymentRepository}.</p>
+ *
+ * <p>Responsibilities:
+ * <ul>
+ *     <li>Validates if the item is eligible for payment.</li>
+ *     <li>Creates a new {@link Payment} object with status COMPLETED and the current timestamp.</li>
+ *     <li>Persists the payment to the database.</li>
+ * </ul>
+ * </p>
+ *
+ * @author Erfan
+ * @since Oct 2025
+ */
 @Service
 public class PaymentServiceImpl implements PaymentService {
 

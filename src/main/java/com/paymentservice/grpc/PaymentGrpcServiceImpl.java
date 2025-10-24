@@ -12,6 +12,47 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Optional;
 
+/**
+ * PaymentGrpcServiceImpl Class
+ * Location: grpc/PaymentGrpcServiceImpl.java
+ *
+ * Overview:
+ * This class defines the gRPC service implementation for processing auction payments
+ * in a distributed microservices architecture. It is exposed via gRPC using the
+ * Spring Boot gRPC starter (`@GrpcService`), acting as the communication bridge
+ * between external clients and the internal `PaymentService` logic.
+ *
+ * Responsibilities:
+ * - Receives payment requests via gRPC protocol.
+ * - Validates incoming payment requests to prevent duplicates.
+ * - Delegates valid payment requests to the core PaymentService.
+ * - Returns structured gRPC responses based on success, failure, or duplication.
+ *
+ * Key Flow:
+ * 1. **Validation**:
+ *     • Checks if a payment for the given user and item with status COMPLETED already exists.
+ *     • If so, returns a gRPC response with status "DUPLICATE" and exits early.
+ * 2. **Processing**:
+ *     • Calls the `processPayment()` method in PaymentService.
+ *     • Logs and returns success response with payment ID and status.
+ * 3. **Error Handling**:
+ *     • Catches unexpected exceptions and returns a gRPC response with status "FAILED".
+ *
+ * Why It's Important:
+ * - Enables other services or front-end clients to initiate payments via gRPC.
+ * - Maintains transactional safety by checking for duplicates before processing.
+ * - Central point for exposing payment functionality over a network interface.
+ *
+ * Dependencies:
+ * - `PaymentService`: handles the core business logic for payment processing.
+ * - `PaymentRepository`: queried directly to validate against duplicate payments.
+ *
+ * Logging:
+ * - Uses SLF4J for request and error logging to trace gRPC calls and failures.
+ *
+ * Author: Erfan YousefMoumji
+ * Date: Oct 24, 2025
+ */
 @GrpcService
 public class PaymentGrpcServiceImpl extends PaymentGrpcServiceGrpc.PaymentGrpcServiceImplBase {
 

@@ -1,36 +1,21 @@
 /**
- * Payment Entity Class
- * Location: model/Payment.java
+ * Represents a payment record in the Payment Microservice of the Auction System.
  *
- * Overview:
- * This class represents the Payment entity in the Auction System’s Payment Microservice.
- * It is mapped to the "payments" table in the PostgreSQL database.
- * Each record represents a single payment attempt made by a user for an auction item.
+ * <p>This entity is mapped to the "payments" table in the PostgreSQL database.
+ * Each instance corresponds to a single payment attempt (successful, failed, or pending)
+ * made by a user for a specific auction item.</p>
  *
- * Purpose:
- * - Store all payment attempts, whether successful, failed, or pending.
- * - Allow lookup to verify if an auction item has already been paid for.
- * - Serve as the foundation for future payment operations such as validation, processing, and receipt generation.
+ * <p><b>Main Responsibilities:</b></p>
+ * <ul>
+ *   <li>Store detailed information about each payment transaction.</li>
+ *   <li>Enable validation checks to see if an item has already been paid for.</li>
+ *   <li>Support downstream operations like processing, auditing, and receipt generation.</li>
+ * </ul>
  *
- * Database Mapping:
- * - Uses JPA annotations for entity persistence.
- * - Mapped to the "payments" table.
+ * <p><b>Database Table:</b> payments</p>
  *
- * Fields and Roles:
- * - id: Primary key (unique identifier for each payment).
- * - userId: Identifies the user who initiated the payment.
- * - itemId: Identifies the auction item associated with the payment.
- * - amount: Represents the transaction amount.
- * - status: Enum (PENDING, COMPLETED, FAILED) indicating the payment state.
- * - createdAt: Timestamp of when the payment record was created (for logging and audits).
- *
- * Design Rationale:
- * - Keeps all payment information centralized for auditing and business logic.
- * - Simplifies validation by linking payments directly to users and items.
- * - Enables clean integration with gRPC calls for routing and validation.
- *
- * Author: Erfan YousefMoumji
- * Date: Oct 20, 2025
+ * @author Erfan YousefMoumji
+ * @since October 25, 2025
  */
 package com.paymentservice.model;
 import jakarta.persistence.*;
@@ -55,6 +40,15 @@ public class Payment {
     public Payment() {
     }
 
+    /**
+     * Constructs a new Payment record without an ID (used for creation).
+     *
+     * @param userId    ID of the user making the payment
+     * @param itemId    ID of the item being paid for
+     * @param amount    Transaction amount
+     * @param status    Payment status
+     * @param createdAt Timestamp of creation
+     */
     // Parameterized constructor (excluding id)
     public Payment(Long userId, Long itemId, Double amount, PaymentStatus status, LocalDateTime createdAt) {
         this.userId = userId;

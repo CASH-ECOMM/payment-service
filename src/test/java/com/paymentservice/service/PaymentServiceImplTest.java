@@ -5,9 +5,14 @@ import com.paymentservice.model.PaymentStatus;
 import com.paymentservice.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 /**
  * Unit Tests for PaymentServiceImpl
  * Location: test/java/com/paymentservice/service/PaymentServiceImplTest.java
@@ -35,9 +40,7 @@ import java.time.LocalDateTime;
  * Date: Oct 24, 2025
  */
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
+@ExtendWith(MockitoExtension.class)
 class PaymentServiceImplTest {
 
     @InjectMocks
@@ -49,10 +52,8 @@ class PaymentServiceImplTest {
     @Mock
     private PaymentValidationService paymentValidationService;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    @Captor
+    private ArgumentCaptor<Payment> paymentCaptor;
 
     @Test
     void processPayment_validItem_shouldSavePayment() {
@@ -60,15 +61,22 @@ class PaymentServiceImplTest {
         Long userId = 1L;
         Long itemId = 100L;
         Double amount = 50.0;
+        String cardNumber = "4111111111111111";
+        String cardHolderName = "Test User";
+        String expirationDate = "12/29";
+        String cvv = "123";
+
+        String expectedLast4 = cardNumber.substring(cardNumber.length() - 4);
+        Payment expectedSaved = new Payment(userId, itemId, amount, PaymentStatus.COMPLETED,
+                LocalDateTime.now(), expectedLast4, cardHolderName);
+        expectedSaved.setId(1001L);
 
         when(paymentValidationService.isValidForPayment(itemId)).thenReturn(true);
-
-        ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-        Payment savedPayment = new Payment(userId, itemId, amount, PaymentStatus.COMPLETED, LocalDateTime.now());
-        when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+        when(paymentRepository.save(any(Payment.class))).thenReturn(expectedSaved);
 
         // Act
-        Payment result = paymentService.processPayment(userId, itemId, amount);
+        Payment result = paymentService.processPayment(userId, itemId, amount, cardNumber,
+                cardHolderName, expirationDate, cvv);
 
         // Assert
         verify(paymentValidationService).isValidForPayment(itemId);
@@ -80,19 +88,29 @@ class PaymentServiceImplTest {
         assertEquals(amount, captured.getAmount());
         assertEquals(PaymentStatus.COMPLETED, captured.getStatus());
         assertNotNull(captured.getCreatedAt());
+        assertEquals(expectedLast4, captured.getCardLast4());
+        assertEquals(cardHolderName, captured.getCardHolderName());
 
-        assertEquals(savedPayment, result);
+        assertEquals(expectedSaved, result);
     }
 
     @Test
     void processPayment_invalidItem_shouldThrowException() {
         // Arrange
+        Long userId = 1L;
         Long itemId = 200L;
+        Double amount = 30.0;
+        String cardNumber = "4111111111111111";
+        String cardHolderName = "Test User";
+        String expirationDate = "12/29";
+        String cvv = "123";
+
         when(paymentValidationService.isValidForPayment(itemId)).thenReturn(false);
 
         // Act & Assert
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-                paymentService.processPayment(1L, itemId, 30.0));
+                paymentService.processPayment(userId, itemId, amount, cardNumber, cardHolderName, expirationDate, cvv)
+        );
 
         assertEquals("Payment already completed for this item.", ex.getMessage());
         verify(paymentValidationService).isValidForPayment(itemId);

@@ -7,7 +7,11 @@ import com.paymentservice.service.PaymentService;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -44,6 +48,7 @@ import static org.mockito.Mockito.*;
  * Date: Oct 24, 2025
  */
 
+@ExtendWith(MockitoExtension.class)
 class PaymentGrpcServiceImplTest {
 
     @InjectMocks
@@ -61,22 +66,25 @@ class PaymentGrpcServiceImplTest {
     @Captor
     private ArgumentCaptor<PaymentResponse> responseCaptor;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
-
     @Test
     void testProcessPayment_Success() {
         // Arrange
         Long userId = 1L;
         Long itemId = 101L;
         double amount = 29.99;
+        String cardNumber = "4111111111111111";
+        String cardHolderName = "Test User";
+        String expirationDate = "12/29";
+        String cvv = "123";
 
         PaymentRequest request = PaymentRequest.newBuilder()
                 .setUserId(userId)
                 .setItemId(itemId)
                 .setAmount(amount)
+                .setCardNumber(cardNumber)
+                .setCardHolderName(cardHolderName)
+                .setExpirationDate(expirationDate)
+                .setCvv(cvv)
                 .build();
 
         Payment payment = new Payment(userId, itemId, amount, PaymentStatus.COMPLETED, LocalDateTime.now());
@@ -84,8 +92,8 @@ class PaymentGrpcServiceImplTest {
 
         when(paymentRepository.findByUserIdAndItemIdAndStatus(userId, itemId, PaymentStatus.COMPLETED))
                 .thenReturn(Optional.empty());
-
-        when(paymentService.processPayment(userId, itemId, amount)).thenReturn(payment);
+        when(paymentService.processPayment(userId, itemId, amount, cardNumber, cardHolderName, expirationDate, cvv))
+                .thenReturn(payment);
 
         // Act
         paymentGrpcService.processPayment(request, responseObserver);
@@ -95,9 +103,9 @@ class PaymentGrpcServiceImplTest {
         verify(responseObserver).onCompleted();
 
         PaymentResponse response = responseCaptor.getValue();
-        assert response.getStatus().equals("COMPLETED");
-        assert response.getPaymentId() == 999L;
-        assert response.getMessage().equals("Payment successful");
+        assertEquals("COMPLETED", response.getStatus());
+        assertEquals(999L, response.getPaymentId());
+        assertEquals("Payment successful", response.getMessage());
     }
 
     @Test
@@ -111,10 +119,17 @@ class PaymentGrpcServiceImplTest {
                 .setUserId(userId)
                 .setItemId(itemId)
                 .setAmount(amount)
+                .setCardNumber("4111111111111111")
+                .setCardHolderName("John Doe")
+                .setExpirationDate("12/30")
+                .setCvv("123")
                 .build();
 
         Payment existingPayment = new Payment(userId, itemId, amount, PaymentStatus.COMPLETED, LocalDateTime.now());
-        when(paymentRepository.findByUserIdAndItemIdAndStatus(userId, itemId, PaymentStatus.COMPLETED))
+
+        // 🛠️ Use eq() to match exact enum instance
+        when(paymentRepository.findByUserIdAndItemIdAndStatus(
+                eq(userId), eq(itemId), eq(PaymentStatus.COMPLETED)))
                 .thenReturn(Optional.of(existingPayment));
 
         // Act
@@ -125,8 +140,8 @@ class PaymentGrpcServiceImplTest {
         verify(responseObserver).onCompleted();
 
         PaymentResponse response = responseCaptor.getValue();
-        assert response.getStatus().equals("DUPLICATE");
-        assert response.getMessage().equals("Payment already completed for this user and item.");
+        assertEquals("DUPLICATE", response.getStatus());
+        assertEquals("Payment already completed for this user and item.", response.getMessage());
     }
 
     @Test
@@ -135,17 +150,24 @@ class PaymentGrpcServiceImplTest {
         Long userId = 1L;
         Long itemId = 101L;
         double amount = 29.99;
+        String cardNumber = "4111111111111111";
+        String cardHolderName = "Test User";
+        String expirationDate = "12/29";
+        String cvv = "123";
 
         PaymentRequest request = PaymentRequest.newBuilder()
                 .setUserId(userId)
                 .setItemId(itemId)
                 .setAmount(amount)
+                .setCardNumber(cardNumber)
+                .setCardHolderName(cardHolderName)
+                .setExpirationDate(expirationDate)
+                .setCvv(cvv)
                 .build();
 
         when(paymentRepository.findByUserIdAndItemIdAndStatus(userId, itemId, PaymentStatus.COMPLETED))
                 .thenReturn(Optional.empty());
-
-        when(paymentService.processPayment(userId, itemId, amount))
+        when(paymentService.processPayment(userId, itemId, amount, cardNumber, cardHolderName, expirationDate, cvv))
                 .thenThrow(new RuntimeException("Database error"));
 
         // Act
@@ -156,7 +178,37 @@ class PaymentGrpcServiceImplTest {
         verify(responseObserver).onCompleted();
 
         PaymentResponse response = responseCaptor.getValue();
-        assert response.getStatus().equals("FAILED");
-        assert response.getMessage().equals("Database error");
+        assertEquals("FAILED", response.getStatus());
+        assertEquals("Database error", response.getMessage());
+    }
+
+    @Test
+    void testProcessPayment_CreditCardFieldsMissing() {
+        // Arrange
+        Long userId = 1L;
+        Long itemId = 101L;
+        double amount = 29.99;
+
+        // All fields empty (you can test individually too)
+        PaymentRequest request = PaymentRequest.newBuilder()
+                .setUserId(userId)
+                .setItemId(itemId)
+                .setAmount(amount)
+                .setCardNumber("")
+                .setCardHolderName("")
+                .setExpirationDate("")
+                .setCvv("")
+                .build();
+
+        // Act
+        paymentGrpcService.processPayment(request, responseObserver);
+
+        // Assert
+        verify(responseObserver).onNext(responseCaptor.capture());
+        verify(responseObserver).onCompleted();
+
+        PaymentResponse response = responseCaptor.getValue();
+        assertEquals("FAILED", response.getStatus());
+        assertEquals("All credit card fields are required.", response.getMessage());
     }
 }

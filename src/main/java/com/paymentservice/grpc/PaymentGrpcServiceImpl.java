@@ -13,45 +13,38 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Optional;
 
 /**
- * PaymentGrpcServiceImpl Class
- * Location: grpc/PaymentGrpcServiceImpl.java
+ * {@code PaymentGrpcServiceImpl} provides the gRPC interface for handling payment operations.
  *
- * Overview:
- * This class defines the gRPC service implementation for processing auction payments
- * in a distributed microservices architecture. It is exposed via gRPC using the
- * Spring Boot gRPC starter (`@GrpcService`), acting as the communication bridge
- * between external clients and the internal `PaymentService` logic.
+ * <p>This class acts as a bridge between remote clients and the {@link PaymentService} business logic.
+ * It validates payment requests, prevents duplicate transactions, and returns structured responses
+ * to gRPC clients.</p>
  *
- * Responsibilities:
- * - Receives payment requests via gRPC protocol.
- * - Validates incoming payment requests to prevent duplicates.
- * - Delegates valid payment requests to the core PaymentService.
- * - Returns structured gRPC responses based on success, failure, or duplication.
+ * <h2>Responsibilities:</h2>
+ * <ul>
+ *     <li>Receive and handle gRPC payment requests.</li>
+ *     <li>Validate input fields and check for duplicate completed payments.</li>
+ *     <li>Delegate valid payments to {@link PaymentService} for processing.</li>
+ *     <li>Respond with detailed gRPC messages for success, duplication, or failure cases.</li>
+ * </ul>
  *
- * Key Flow:
- * 1. **Validation**:
- *     • Checks if a payment for the given user and item with status COMPLETED already exists.
- *     • If so, returns a gRPC response with status "DUPLICATE" and exits early.
- * 2. **Processing**:
- *     • Calls the `processPayment()` method in PaymentService.
- *     • Logs and returns success response with payment ID and status.
- * 3. **Error Handling**:
- *     • Catches unexpected exceptions and returns a gRPC response with status "FAILED".
+ * <h2>Key Flow:</h2>
+ * <ol>
+ *     <li>Check for missing credit card fields → respond with {@code FAILED}.</li>
+ *     <li>Check for duplicate completed payments → respond with {@code DUPLICATE}.</li>
+ *     <li>Otherwise, process the payment and respond with {@code COMPLETED}.</li>
+ * </ol>
  *
- * Why It's Important:
- * - Enables other services or front-end clients to initiate payments via gRPC.
- * - Maintains transactional safety by checking for duplicates before processing.
- * - Central point for exposing payment functionality over a network interface.
+ * <h2>Dependencies:</h2>
+ * <ul>
+ *     <li>{@link PaymentService} — contains core business logic for processing payments.</li>
+ *     <li>{@link PaymentRepository} — used for duplicate payment validation.</li>
+ * </ul>
  *
- * Dependencies:
- * - `PaymentService`: handles the core business logic for payment processing.
- * - `PaymentRepository`: queried directly to validate against duplicate payments.
+ * <h2>Logging:</h2>
+ * Uses SLF4J for structured logging to track incoming requests, results, and errors.
  *
- * Logging:
- * - Uses SLF4J for request and error logging to trace gRPC calls and failures.
- *
- * Author: Erfan YousefMoumji
- * Date: Oct 24, 2025
+ * <p><b>Author:</b> Erfan YousefMoumji</p>
+ * <p><b>Date:</b> Oct 24, 2025</p>
  */
 @GrpcService
 public class PaymentGrpcServiceImpl extends PaymentGrpcServiceGrpc.PaymentGrpcServiceImplBase {
@@ -64,55 +57,73 @@ public class PaymentGrpcServiceImpl extends PaymentGrpcServiceGrpc.PaymentGrpcSe
     @Autowired
     private PaymentRepository paymentRepository;
 
+    /**
+     * Handles incoming gRPC payment requests by validating and processing them.
+     *
+     * @param request the incoming payment request containing user, item, and card info
+     * @param responseObserver gRPC stream observer used to send responses back to the client
+     */
     @Override
     public void processPayment(PaymentRequest request, StreamObserver<PaymentResponse> responseObserver) {
         Long userId = request.getUserId();
         Long itemId = request.getItemId();
         double amount = request.getAmount();
 
-        logger.info("Received gRPC payment request: userId={}, itemId={}, amount={}", userId, itemId, amount);
+        String cardNumber = request.getCardNumber();
+        String cardHolderName = request.getCardHolderName();
+        String expirationDate = request.getExpirationDate();
+        String cvv = request.getCvv();
+
+        logger.info("Received gRPC payment request: userId={}, itemId={}, amount={}, cardHolder={}",
+                userId, itemId, amount, cardHolderName);
 
         try {
-            // Step 1: Check for duplicate payment
+            // Validate mandatory card fields
+            if (cardNumber.isEmpty() || cardHolderName.isEmpty() || expirationDate.isEmpty() || cvv.isEmpty()) {
+                responseObserver.onNext(PaymentResponse.newBuilder()
+                        .setStatus("FAILED")
+                        .setMessage("All credit card fields are required.")
+                        .build());
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Prevent duplicate payments
             Optional<Payment> existing = paymentRepository
                     .findByUserIdAndItemIdAndStatus(userId, itemId, PaymentStatus.COMPLETED);
 
             if (existing.isPresent()) {
                 logger.warn("Duplicate payment attempt detected for userId={} and itemId={}", userId, itemId);
 
-                PaymentResponse duplicateResponse = PaymentResponse.newBuilder()
+                responseObserver.onNext(PaymentResponse.newBuilder()
                         .setStatus("DUPLICATE")
                         .setMessage("Payment already completed for this user and item.")
-                        .build();
-
-                responseObserver.onNext(duplicateResponse);
+                        .build());
                 responseObserver.onCompleted();
                 return;
             }
 
-            // Step 2: Process new payment
-            Payment payment = paymentService.processPayment(userId, itemId, amount);
+            // Process new valid payment
+            Payment payment = paymentService.processPayment(
+                    userId, itemId, amount, cardNumber, cardHolderName, expirationDate, cvv);
 
             logger.info("Payment processed successfully: paymentId={}, status={}", payment.getId(), payment.getStatus());
 
-            PaymentResponse response = PaymentResponse.newBuilder()
+            responseObserver.onNext(PaymentResponse.newBuilder()
                     .setPaymentId(payment.getId())
                     .setStatus(payment.getStatus().name())
                     .setMessage("Payment successful")
-                    .build();
-
-            responseObserver.onNext(response);
+                    .build());
             responseObserver.onCompleted();
 
         } catch (Exception e) {
-            logger.error("Payment processing failed: userId={}, itemId={}, amount={}, error={}", userId, itemId, amount, e.getMessage(), e);
+            logger.error("Payment processing failed: userId={}, itemId={}, amount={}, error={}",
+                    userId, itemId, amount, e.getMessage(), e);
 
-            PaymentResponse response = PaymentResponse.newBuilder()
+            responseObserver.onNext(PaymentResponse.newBuilder()
                     .setStatus("FAILED")
                     .setMessage(e.getMessage())
-                    .build();
-
-            responseObserver.onNext(response);
+                    .build());
             responseObserver.onCompleted();
         }
     }

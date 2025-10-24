@@ -8,23 +8,29 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+
 /**
- * Implementation of the {@link PaymentService} interface that handles payment processing logic.
+ * {@code PaymentServiceImpl} implements {@link PaymentService} and handles
+ * the core business logic for processing and validating payments.
  *
- * <p>This service ensures that a payment is only processed if it is valid (e.g., no duplicate payments).
- * It uses a {@link PaymentValidationService} to verify the eligibility of an item for payment
- * and then persists the payment data through the {@link PaymentRepository}.</p>
+ * <p>This implementation ensures that each payment is valid, simulates card
+ * processing checks, securely masks sensitive data, and persists payment records
+ * into the database.</p>
  *
- * <p>Responsibilities:
+ * <h2>Responsibilities:</h2>
  * <ul>
- *     <li>Validates if the item is eligible for payment.</li>
- *     <li>Creates a new {@link Payment} object with status COMPLETED and the current timestamp.</li>
- *     <li>Persists the payment to the database.</li>
+ *   <li>Validate payment eligibility via {@link PaymentValidationService}.</li>
+ *   <li>Simulate basic credit card validation (format and non-empty fields).</li>
+ *   <li>Mask sensitive card data before saving and logging.</li>
+ *   <li>Create and persist a {@link Payment} entity to the database.</li>
  * </ul>
- * </p>
  *
- * @author Erfan
- * @since Oct 2025
+ * <h2>Security:</h2>
+ * <p>Only the last 4 digits of the credit card number and the cardholder’s name
+ * are stored for reference to maintain PCI compliance and protect user data.</p>
+ *
+ * <p><b>Author:</b> Erfan YousefMoumji</p>
+ * <p><b>Date:</b> Oct 24, 2025</p>
  */
 @Service
 public class PaymentServiceImpl implements PaymentService {
@@ -35,22 +41,64 @@ public class PaymentServiceImpl implements PaymentService {
     @Autowired
     private PaymentValidationService paymentValidationService;
 
-    @Override
-    public Payment processPayment(Long userId, Long itemId, Double amount) {
-        boolean isValid = paymentValidationService.isValidForPayment(itemId);
+    /**
+     * Processes a payment by validating eligibility, checking credit card fields,
+     * masking sensitive data, and persisting the result.
+     *
+     * @param userId          the user’s ID
+     * @param itemId          the item being purchased
+     * @param amount          the total amount
+     * @param cardNumber      the full (simulated) card number
+     * @param cardHolderName  the name on the card
+     * @param expirationDate  the card expiration date
+     * @param cvv             the card’s CVV code
+     * @return the saved {@link Payment} entity
+     * @throws IllegalStateException    if payment is already completed
+     * @throws IllegalArgumentException if card fields are invalid
+     */
 
-        if (!isValid) {
+    @Override
+    public Payment processPayment(Long userId, Long itemId, Double amount,
+                                  String cardNumber, String cardHolderName, String expirationDate, String cvv) {
+
+        // ===== Step 1: Validate payment eligibility =====
+        if (!paymentValidationService.isValidForPayment(itemId)) {
             throw new IllegalStateException("Payment already completed for this item.");
         }
 
+        // ===== Step 2: Validate credit card fields =====
+        if (cardNumber == null || cardNumber.length() < 12 || cardNumber.length() > 19) {
+            throw new IllegalArgumentException("Invalid card number.");
+        }
+        if (cvv == null || cvv.length() < 3 || cvv.length() > 4) {
+            throw new IllegalArgumentException("Invalid CVV.");
+        }
+        if (cardHolderName == null || cardHolderName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Cardholder name is required.");
+        }
+        if (expirationDate == null || expirationDate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Expiration date is required.");
+        }
+
+        // ===== Step 3: Mask and log safely =====
+        String maskedCard = "**** **** **** " + cardNumber.substring(cardNumber.length() - 4);
+        String last4 = cardNumber.substring(cardNumber.length() - 4);
+
+        System.out.println("Processing payment for item " + itemId +
+                " with card ending in " + last4 + " belonging to " + cardHolderName);
+
+        // ===== Step 4: Create Payment entity =====
         Payment payment = new Payment(
                 userId,
                 itemId,
                 amount,
                 PaymentStatus.COMPLETED,
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                last4,                // securely store only last 4 digits
+                cardHolderName        // store cardholder name for reference
         );
 
+        // ===== Step 5: Save and return =====
         return paymentRepository.save(payment);
     }
 }

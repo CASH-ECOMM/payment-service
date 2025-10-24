@@ -22,49 +22,7 @@
 package com.paymentservice.service;
 
 import com.paymentservice.model.Payment;
-import com.paymentservice.model.PaymentStatus;
-import com.paymentservice.repository.PaymentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-
-@Service
-public class PaymentService {
-
-    @Autowired
-    private PaymentRepository paymentRepository;
-
-    @Autowired
-    private PaymentValidationService paymentValidationService;
-
-    /**
-     * Process a payment for a given user and item.
-     * @param userId The ID of the user making the payment
-     * @param itemId The ID of the item being paid for
-     * @param amount The amount to be paid
-     * @return Saved Payment object
-     * @throws IllegalStateException if payment is not allowed
-     */
-    public Payment processPayment(Long userId, Long itemId, Double amount) {
-        // Check if the item is eligible for payment
-        boolean isValid = paymentValidationService.isValidForPayment(itemId);
-
-        if (!isValid) {
-            throw new IllegalStateException("Payment already completed for this item.");
-        }
-
-        // Create new Payment object
-        Payment payment = new Payment(
-                userId,
-                itemId,
-                amount,
-                PaymentStatus.COMPLETED, // You may change to PENDING if payment is asynchronous
-                LocalDateTime.now()
-        );
-
-        // Save to database
-        return paymentRepository.save(payment);
-    }
+public interface PaymentService {
+    Payment processPayment(Long userId, Long itemId, Double amount);
 }
-

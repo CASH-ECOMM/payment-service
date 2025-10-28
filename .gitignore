@@ -20,3 +20,9 @@ application.yml
 /.mvn/
 /.gradle/
 /build/
+
+# Ignore local environment files
+.env
+*.env
+application.properties
+application-secret.properties

@@ -41,4 +41,6 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByItemId(Long itemId);
     Optional<Payment> findByUserIdAndItemIdAndStatus(Long userId, Long itemId, PaymentStatus status);
+    int deleteByItemId(Long itemId);
+    boolean existsByUserIdAndItemId(Long userId, Long itemId);
 }

@@ -1,5 +1,6 @@
 package com.paymentservice.service;
 
+import com.paymentservice.exception.PaymentValidationException;
 import com.paymentservice.model.Payment;
 import com.paymentservice.model.PaymentStatus;
 import com.paymentservice.repository.PaymentRepository;
@@ -61,9 +62,17 @@ public class PaymentServiceImpl implements PaymentService {
     public Payment processPayment(Long userId, Long itemId, Double amount,
                                   String cardNumber, String cardHolderName, String expirationDate, String cvv) {
 
-        // ===== Step 1: Validate payment eligibility =====
+        // Validate payment eligibility =====
         if (!paymentValidationService.isValidForPayment(itemId)) {
             throw new IllegalStateException("Payment already completed for this item.");
+        }
+        if (amount == null || amount <= 0) {
+            throw new PaymentValidationException("Payment amount must be greater than zero.");
+        }
+        // duplicate payment check
+        boolean duplicate = paymentRepository.existsByUserIdAndItemId(userId, itemId);
+        if (duplicate) {
+            throw new PaymentValidationException("Duplicate payment: this user already paid for this item.");
         }
 
         // ===== Step 2: Validate credit card fields =====
@@ -80,14 +89,14 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalArgumentException("Expiration date is required.");
         }
 
-        // ===== Step 3: Mask and log safely =====
+        // Mask and log safely
         String maskedCard = "**** **** **** " + cardNumber.substring(cardNumber.length() - 4);
         String last4 = cardNumber.substring(cardNumber.length() - 4);
 
         System.out.println("Processing payment for item " + itemId +
                 " with card ending in " + last4 + " belonging to " + cardHolderName);
 
-        // ===== Step 4: Create Payment entity =====
+        // Create Payment entity
         Payment payment = new Payment(
                 userId,
                 itemId,
@@ -98,7 +107,7 @@ public class PaymentServiceImpl implements PaymentService {
                 cardHolderName        // store cardholder name for reference
         );
 
-        // ===== Step 5: Save and return =====
+        // Save and return
         return paymentRepository.save(payment);
     }
 }

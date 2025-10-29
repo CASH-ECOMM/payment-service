@@ -1,10 +1,41 @@
-spring.datasource.url=${DB_URL}
-spring.datasource.username=${DB_USERNAME}
-spring.datasource.password=${DB_PASSWORD}
+# ==== App ====
+spring.application.name=payment-service
+server.port=${SERVER_PORT:8083}
+
+# ==== PostgreSQL ====
+spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/payment_db}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:}
+# driver is auto-detected; keep if you prefer explicit
 spring.datasource.driver-class-name=org.postgresql.Driver
 
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.show-sql=true
+# ==== JPA/Hibernate ====
+# Hibernate 6 can auto-detect dialect; if you want explicit, pick ONE of the two below (not both)
+# spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.properties.hibernate.dialect=${HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+spring.jpa.hibernate.ddl-auto=${JPA_DDL_AUTO:update}
+spring.jpa.show-sql=${JPA_SHOW_SQL:true}
 
-grpc.server.port=9090
+
+spring.jpa.properties.hibernate.format_sql=${HIBERNATE_FORMAT_SQL:true}
+spring.jpa.properties.hibernate.use_sql_comments=${HIBERNATE_SQL_COMMENTS:true}
+
+# ==== gRPC Server ====
+grpc.server.address=${GRPC_ADDRESS:0.0.0.0}
+grpc.server.port=${GRPC_PORT:9090}
+
+# ==== Logging ====
+logging.level.root=${LOG_LEVEL_ROOT:INFO}
+logging.level.com.ecommerce.payment=${LOG_LEVEL_APP:DEBUG}
+logging.level.org.hibernate.SQL=${LOG_LEVEL_HIBERNATE_SQL:DEBUG}
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=${LOG_LEVEL_HIBERNATE_BINDER:TRACE}
+
+# ==== Swagger / SpringDoc ====
+springdoc.api-docs.path=${SPRINGDOC_API_DOCS_PATH:/api-docs}
+springdoc.swagger-ui.path=${SPRINGDOC_SWAGGER_UI_PATH:/swagger-ui.html}
+springdoc.swagger-ui.enabled=${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+
+# ==== Payment business settings ====
+payment.hst.rate=${PAYMENT_HST_RATE:0.13}
+payment.shipping.regular.surcharge=${PAYMENT_SHIP_REGULAR_SURCHARGE:0.0}
+payment.shipping.expedited.surcharge=${PAYMENT_SHIP_EXPEDITED_SURCHARGE:10.0}

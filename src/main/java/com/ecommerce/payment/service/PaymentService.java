@@ -63,16 +63,16 @@ public class PaymentService {
             double hstAmount = (itemCost + shippingCost) * hstRate;
             double totalAmount = itemCost + shippingCost + hstAmount;
 
-            log.debug("Payment calculation - Item: ${}, Shipping: ${}, HST: ${}, Total: ${}",
+            log.debug("Payment calculation - Item: $ {}, Shipping: $ {}, HST: $ {}, Total: $ {}",
                     itemCost, shippingCost, hstAmount, totalAmount);
 
-            // Step 3: Create and save payment entity
+            // Create and save payment entity
             Payment payment = createPaymentEntity(request, shippingCost, hstAmount, totalAmount);
             Payment savedPayment = paymentRepository.save(payment);
 
             log.info("Payment saved successfully with ID: {}", savedPayment.getPaymentId());
 
-            // Step 4: Simulate payment processing (mock validation)
+            // Simulate payment processing (mock validation)
             boolean paymentSuccess = simulatePaymentProcessing(savedPayment);
 
             if (!paymentSuccess) {
@@ -82,18 +82,18 @@ public class PaymentService {
                 return buildErrorResponse("Payment processing failed. Please try again.");
             }
 
-            // Step 5: Update payment status to completed
+            // Update payment status to completed
             savedPayment.setPaymentStatus(Payment.PaymentStatus.COMPLETED);
             savedPayment.setTransactionReference("TXN-" + System.currentTimeMillis());
             paymentRepository.save(savedPayment);
 
-            // Step 6: Generate receipt
+            // Generate receipt
             Receipt receipt = createReceipt(savedPayment);
             Receipt savedReceipt = receiptRepository.save(receipt);
 
             log.info("Receipt generated successfully with ID: {}", savedReceipt.getReceiptId());
 
-            // Step 7: Build and return success response
+            // Build and return success response
             return buildSuccessResponse(savedPayment, savedReceipt);
 
         } catch (Exception e) {

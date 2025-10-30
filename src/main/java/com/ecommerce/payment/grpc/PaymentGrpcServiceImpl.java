@@ -22,8 +22,21 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
     public void processPayment(PaymentRequest request, StreamObserver<PaymentResponse> responseObserver) {
         log.info("Received gRPC ProcessPayment request for user: {}", request.getUserInfo().getUserId());
 
+        String validationError = validateRequest(request);
+        if (validationError != null) {
+            responseObserver.onNext(failureResponse(validationError));
+            responseObserver.onCompleted();
+            return;
+        }
         try {
             PaymentResponse response = paymentService.processPayment(request);
+            if (response.getTransactionDate().isBlank()) {
+                String now = java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                response = PaymentResponse.newBuilder(response)
+                        .setTransactionDate(now)
+                        .build();
+            }
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -31,7 +44,9 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
             log.info("ProcessPayment gRPC call completed successfully");
         } catch (Exception e) {
             log.error("Error in ProcessPayment gRPC call", e);
-            responseObserver.onError(e);
+            String msg = "An error occurred while processing your payment: " + e.getMessage();
+            responseObserver.onNext(failureResponse(msg));
+            responseObserver.onCompleted();
         }
     }
 
@@ -82,5 +97,28 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
             log.error("Error in GetPaymentHistory gRPC call", e);
             responseObserver.onError(e);
         }
+    }
+
+    private String validateRequest(PaymentRequest r) {
+        if (!r.hasUserInfo()) return "Missing user information.";
+        if (r.getUserInfo().getUserId().isBlank()) return "Missing userId.";
+        if (r.getItemId().isBlank()) return "Missing itemId.";
+        if (r.getItemCost() < 0) return "itemCost must be non-negative.";
+        if (!r.hasShippingInfo()) return "Missing shipping info.";
+        if (!r.hasCreditCardInfo()) return "Missing credit card info.";
+        if (r.getCreditCardInfo().getCardNumber().isBlank()) return "Missing card number.";
+        if (r.getCreditCardInfo().getNameOnCard().isBlank()) return "Missing name on card.";
+        if (r.getCreditCardInfo().getExpiryDate().isBlank()) return "Missing expiry date.";
+        if (r.getCreditCardInfo().getSecurityCode().isBlank()) return "Missing security code.";
+        return null;
+    }
+    private PaymentResponse failureResponse(String message) {
+        String now = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return PaymentResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage(message)
+                .setTransactionDate(now)
+                .build();
     }
 }

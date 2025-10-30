@@ -9,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
+
 
 @Entity
 @Table(name = "payments")
@@ -20,6 +22,10 @@ public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private PaymentStatus status = PaymentStatus.PENDING;
     @Column(name = "payment_id", updatable = false, nullable = false)
     private String paymentId;
 
@@ -64,6 +70,21 @@ public class Payment {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = PaymentStatus.PENDING;
+        }
+        if (paymentStatus == null) {
+            paymentStatus = PaymentStatus.PROCESSING;
+        }
+        if (paymentId == null || paymentId.isBlank()) {
+            paymentId = "PAY-" + UUID.randomUUID();
+        }
+    }
 
     @UpdateTimestamp
     @Column(name = "updated_at")

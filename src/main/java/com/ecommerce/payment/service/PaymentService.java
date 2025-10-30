@@ -63,7 +63,7 @@ public class PaymentService {
             double hstAmount = (itemCost + shippingCost) * hstRate;
             double totalAmount = itemCost + shippingCost + hstAmount;
 
-            log.debug("Payment calculation - Item: $ {}, Shipping: $ {}, HST: $ {}, Total: $ {}",
+            log.debug("Payment calculation - Item: ${}, Shipping: ${}, HST: ${}, Total: ${}",
                     itemCost, shippingCost, hstAmount, totalAmount);
 
             // Create and save payment entity

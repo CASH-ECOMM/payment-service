@@ -37,5 +37,5 @@ springdoc.swagger-ui.enabled=${SPRINGDOC_SWAGGER_UI_ENABLED:true}
 
 # ==== Payment business settings ====
 payment.hst.rate=${PAYMENT_HST_RATE:0.13}
-payment.shipping.regular.surcharge=${PAYMENT_SHIP_REGULAR_SURCHARGE:0.0}
-payment.shipping.expedited.surcharge=${PAYMENT_SHIP_EXPEDITED_SURCHARGE:10.0}
+payment.shipping.regular.surcharge=${PAYMENT_SHIP_REGULAR_SURCHARGE:0}
+payment.shipping.expedited.surcharge=${PAYMENT_SHIP_EXPEDITED_SURCHARGE:10}

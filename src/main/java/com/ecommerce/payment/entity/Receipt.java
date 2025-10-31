@@ -39,10 +39,10 @@ public class Receipt {
     private String itemId;
 
     @Column(name = "item_cost", nullable = false)
-    private Double itemCost;
+    private Integer itemCost;
 
     @Column(name = "shipping_cost", nullable = false)
-    private Double shippingCost;
+    private Integer shippingCost;
 
     @Column(name = "hst_amount", nullable = false)
     private Double hstAmount;

@@ -36,10 +36,10 @@ public class Payment {
     private String itemId;
 
     @Column(name = "item_cost", nullable = false)
-    private Double itemCost;
+    private Integer itemCost;
 
     @Column(name = "shipping_cost", nullable = false)
-    private Double shippingCost;
+    private Integer shippingCost;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "shipping_type", nullable = false)

@@ -40,18 +40,18 @@ public class PaymentService {
     @Value("${payment.hst.rate:0.13}")
     private double hstRate;
 
-    @Value("${payment.shipping.expedited.surcharge:10.0}")
-    private double expeditedSurcharge;
+    @Value("${payment.shipping.expedited.surcharge:10}")
+    private int expeditedSurcharge;
 
     private static final int SCALE = 2;
     private static final RoundingMode ROUND = RoundingMode.HALF_UP;
 
-    /** Convert a primitive amount to 2-dp BigDecimal (HALF_UP). */
+    private static BigDecimal money(int wholeDollars) {
+        return BigDecimal.valueOf(wholeDollars).setScale(SCALE, ROUND);
+    }
     private static BigDecimal money(double v) {
         return BigDecimal.valueOf(v).setScale(SCALE, ROUND);
     }
-
-    /** Ensure an existing BigDecimal is 2-dp (HALF_UP). */
     private static BigDecimal money(BigDecimal v) {
         return v.setScale(SCALE, ROUND);
     }
@@ -92,23 +92,25 @@ public class PaymentService {
 //            double hstAmount = (itemCost + shippingCost) * hstRate;
 //            double totalAmount = itemCost + shippingCost + hstAmount;
 
-            BigDecimal itemCostBD     = money(request.getItemCost());
-            BigDecimal shippingCostBD = money(calculateShippingCost(request.getShippingInfo()));
-            BigDecimal subTotalBD     = itemCostBD.add(shippingCostBD);
-            BigDecimal hstRateBD      = BigDecimal.valueOf(hstRate);
-            BigDecimal hstAmountBD    = money(subTotalBD.multiply(hstRateBD));
-            BigDecimal totalAmountBD  = money(subTotalBD.add(hstAmountBD));
+            // ints from proto (whole dollars)
+            int itemCostInt     = request.getItemCost();                 // already int32
+            int shippingCostInt = calculateShippingCost(request.getShippingInfo()); // returns int
 
-            double itemCost    = itemCostBD.doubleValue();
-            double shippingCost= shippingCostBD.doubleValue();
-            double hstAmount   = hstAmountBD.doubleValue();
-            double totalAmount = totalAmountBD.doubleValue();
+            // precise tax math with BigDecimal
+            BigDecimal itemBD     = money(itemCostInt);
+            BigDecimal shippingBD = money(shippingCostInt);
+            BigDecimal subTotalBD = itemBD.add(shippingBD);
+            BigDecimal hstBD      = subTotalBD.multiply(BigDecimal.valueOf(hstRate)).setScale(2, ROUND);
+            BigDecimal totalBD    = subTotalBD.add(hstBD).setScale(2, ROUND);
 
+            double hstAmountOut   = hstBD.doubleValue();
+            double totalAmountOut = totalBD.doubleValue();
             log.debug("Payment calculation - Item: ${}, Shipping: ${}, HST: ${}, Total: ${}",
-                    itemCost, shippingCost, hstAmount, totalAmount);
+                    itemBD, shippingBD, hstBD, totalBD);
 
             // Create and save payment entity
-            Payment payment = createPaymentEntity(request, shippingCost, hstAmount, totalAmount);
+            Payment payment = createPaymentEntity(
+                    request, itemCostInt, shippingCostInt, hstAmountOut, totalAmountOut);
             Payment savedPayment = paymentRepository.save(payment);
 
             log.info("Payment saved successfully with ID: {}", savedPayment.getPaymentId());
@@ -191,23 +193,26 @@ public class PaymentService {
     /**
      * Calculate shipping cost with surcharge for expedited shipping
      */
-    private double calculateShippingCost(ShippingInfo shippingInfo) {
-        double baseCost = shippingInfo.getShippingCost();
-
+    private int calculateShippingCost(ShippingInfo shippingInfo) {
+        int baseCost = shippingInfo.getShippingCost(); // proto int32 dollars
         if (shippingInfo.getShippingType() == ShippingType.EXPEDITED) {
-            return baseCost + expeditedSurcharge;
+            return baseCost + expeditedSurcharge;      // int dollars
         }
-
         return baseCost;
     }
 
     /**
      * Create payment entity from request
      */
-    private Payment createPaymentEntity(PaymentRequest request, double shippingCost,
-                                        double hstAmount, double totalAmount) {
+    private Payment createPaymentEntity(
+            PaymentRequest request,
+            int itemCostInt,
+            int shippingCostInt,
+            double hstAmount,
+            double totalAmount
+    ) {
         int streetNumber = coerceStreetNumber(request.getUserInfo().getNumber());
-        // Create address
+
         Address address = Address.builder()
                 .firstName(request.getUserInfo().getFirstName())
                 .lastName(request.getUserInfo().getLastName())
@@ -218,23 +223,21 @@ public class PaymentService {
                 .postalCode(request.getUserInfo().getPostalCode())
                 .build();
 
-        // Create credit card info (masked)
         CreditCardInfo cardInfo = new CreditCardInfo();
         cardInfo.setMaskedCardNumber(request.getCreditCardInfo().getCardNumber());
         cardInfo.setNameOnCard(request.getCreditCardInfo().getNameOnCard());
         cardInfo.setExpiryDate(request.getCreditCardInfo().getExpiryDate());
 
-        // Create payment
         return Payment.builder()
                 .userId(request.getUserInfo().getUserId())
                 .itemId(request.getItemId())
-                .itemCost(request.getItemCost())
-                .shippingCost(shippingCost)
+                .itemCost(itemCostInt)          // Integer in entity
+                .shippingCost(shippingCostInt)  // Integer in entity
                 .shippingType(request.getShippingInfo().getShippingType() == ShippingType.EXPEDITED
                         ? Payment.ShippingType.EXPEDITED : Payment.ShippingType.REGULAR)
                 .estimatedShippingDays(request.getShippingInfo().getEstimatedDays())
-                .hstAmount(hstAmount)
-                .totalAmount(totalAmount)
+                .hstAmount(hstAmount)           // double (2dp)
+                .totalAmount(totalAmount)       // double (2dp)
                 .paymentStatus(Payment.PaymentStatus.PROCESSING)
                 .address(address)
                 .creditCardInfo(cardInfo)
@@ -262,13 +265,16 @@ public class PaymentService {
      * Create receipt from payment
      */
     private Receipt createReceipt(Payment payment) {
+        double itemDisplay = money(payment.getItemCost()).doubleValue();   // 2-dp
+        double shipDisplay = money(payment.getShippingCost()).doubleValue();
+
         return Receipt.builder()
                 .payment(payment)
                 .customerName(payment.getAddress().getFirstName() + " " + payment.getAddress().getLastName())
                 .customerAddress(payment.getAddress().getFormattedAddress())
                 .itemId(payment.getItemId())
-                .itemCost(payment.getItemCost())
-                .shippingCost(payment.getShippingCost())
+                .itemCost(payment.getItemCost())          // keep as double (2dp)
+                .shippingCost(payment.getShippingCost())      // keep as double (2dp)
                 .hstAmount(payment.getHstAmount())
                 .totalPaid(payment.getTotalAmount())
                 .paymentMethod(payment.getCreditCardInfo().getCardType())
@@ -287,6 +293,9 @@ public class PaymentService {
                 .setTransactionDate(payment.getCreatedAt().format(DateTimeFormatter.ISO_DATE_TIME));
 
         if (receipt != null) {
+            double itemDisplay = money(payment.getItemCost()).doubleValue();
+            double shipDisplay = money(payment.getShippingCost()).doubleValue();
+
             ReceiptInfo receiptInfo = ReceiptInfo.newBuilder()
                     .setReceiptId(receipt.getReceiptId())
                     .setFirstName(payment.getAddress().getFirstName())

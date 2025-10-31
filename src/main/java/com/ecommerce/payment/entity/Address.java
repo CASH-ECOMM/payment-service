@@ -24,7 +24,7 @@ public class Address {
     private String street;
 
     @Column(name = "street_number", nullable = false)
-    private String number;
+    private Integer number;
 
     @Column(name = "province", nullable = false)
     private String province;
@@ -36,15 +36,15 @@ public class Address {
     private String postalCode;
 
     public String getFullAddress() {
-        return String.format("%s %s, %s, %s, %s, %s",
+        return String.format("%d %s, %s, %s, %s, %s",
                 number, street, province, country, postalCode,
                 firstName + " " + lastName);
     }
-
+    //number got changed to Integer
     public String getFormattedAddress() {
-        return String.format("%s %s\n%s\n%s, %s %s",
+        return String.format("%s %s%n%d %s%n%s, %s %s",
                 firstName, lastName,
-                number + " " + street,
+                number, street,
                 province, country, postalCode);
     }
 }

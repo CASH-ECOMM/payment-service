@@ -15,7 +15,7 @@ INSERT INTO payments (payment_id, user_id, item_id, item_cost, shipping_cost, sh
                       card_type, expiry_date, created_at, updated_at)
 VALUES ('pay-001', 'user-123', 'item-456', 99.99, 15.00, 'REGULAR', 5,
         14.95, 129.94, 'COMPLETED', 'TXN-1698765432100',
-        'John', 'Doe', 'Main Street', '123', 'Ontario', 'Canada', 'M5H 2N2',
+        'John', 'Doe', 'Main Street', 123, 'Ontario', 'Canada', 'M5H 2N2',
         '1234', 'John Doe', 'VISA', '12/25', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Example 2: Completed Expedited Shipping Payment
@@ -26,7 +26,7 @@ INSERT INTO payments (payment_id, user_id, item_id, item_cost, shipping_cost, sh
                       card_type, expiry_date, created_at, updated_at)
 VALUES ('pay-002', 'user-456', 'item-789', 149.99, 25.00, 'EXPEDITED', 2,
         22.75, 197.74, 'COMPLETED', 'TXN-1698765432200',
-        'Jane', 'Smith', 'Oak Avenue', '456', 'British Columbia', 'Canada', 'V6B 1A1',
+        'Jane', 'Smith', 'Oak Avenue', 456, 'British Columbia', 'Canada', 'V6B 1A1',
         '5678', 'Jane Smith', 'MASTERCARD', '06/26', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Sample Receipt Records

@@ -23,6 +23,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -38,6 +43,29 @@ public class PaymentService {
     @Value("${payment.shipping.expedited.surcharge:10.0}")
     private double expeditedSurcharge;
 
+    private static final int SCALE = 2;
+    private static final RoundingMode ROUND = RoundingMode.HALF_UP;
+
+    /** Convert a primitive amount to 2-dp BigDecimal (HALF_UP). */
+    private static BigDecimal money(double v) {
+        return BigDecimal.valueOf(v).setScale(SCALE, ROUND);
+    }
+
+    /** Ensure an existing BigDecimal is 2-dp (HALF_UP). */
+    private static BigDecimal money(BigDecimal v) {
+        return v.setScale(SCALE, ROUND);
+    }
+    //    Helper for throw error for number
+    private int coerceStreetNumber(int raw) {
+        if (raw <= 0) {
+            throw new IllegalArgumentException("Street number must be a positive integer.");
+        }
+
+        if (raw > 999999) {
+            throw new IllegalArgumentException("Street number is too large.");
+        }
+        return raw;
+    }
     /**
      * Process payment request - Main business logic for Use Case 5
      */
@@ -57,11 +85,24 @@ public class PaymentService {
                 return buildErrorResponse("Payment validation failed: " + validationResult.getErrors());
             }
 
+
             // Calculate total cost
-            double itemCost = request.getItemCost();
-            double shippingCost = calculateShippingCost(request.getShippingInfo());
-            double hstAmount = (itemCost + shippingCost) * hstRate;
-            double totalAmount = itemCost + shippingCost + hstAmount;
+//            double itemCost = request.getItemCost();
+//            double shippingCost = calculateShippingCost(request.getShippingInfo());
+//            double hstAmount = (itemCost + shippingCost) * hstRate;
+//            double totalAmount = itemCost + shippingCost + hstAmount;
+
+            BigDecimal itemCostBD     = money(request.getItemCost());
+            BigDecimal shippingCostBD = money(calculateShippingCost(request.getShippingInfo()));
+            BigDecimal subTotalBD     = itemCostBD.add(shippingCostBD);
+            BigDecimal hstRateBD      = BigDecimal.valueOf(hstRate);
+            BigDecimal hstAmountBD    = money(subTotalBD.multiply(hstRateBD));
+            BigDecimal totalAmountBD  = money(subTotalBD.add(hstAmountBD));
+
+            double itemCost    = itemCostBD.doubleValue();
+            double shippingCost= shippingCostBD.doubleValue();
+            double hstAmount   = hstAmountBD.doubleValue();
+            double totalAmount = totalAmountBD.doubleValue();
 
             log.debug("Payment calculation - Item: ${}, Shipping: ${}, HST: ${}, Total: ${}",
                     itemCost, shippingCost, hstAmount, totalAmount);
@@ -165,12 +206,13 @@ public class PaymentService {
      */
     private Payment createPaymentEntity(PaymentRequest request, double shippingCost,
                                         double hstAmount, double totalAmount) {
+        int streetNumber = coerceStreetNumber(request.getUserInfo().getNumber());
         // Create address
         Address address = Address.builder()
                 .firstName(request.getUserInfo().getFirstName())
                 .lastName(request.getUserInfo().getLastName())
                 .street(request.getUserInfo().getStreet())
-                .number(request.getUserInfo().getNumber())
+                .number(streetNumber)
                 .province(request.getUserInfo().getProvince())
                 .country(request.getUserInfo().getCountry())
                 .postalCode(request.getUserInfo().getPostalCode())

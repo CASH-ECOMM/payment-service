@@ -55,10 +55,11 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
      */
     @Override
     public void getPaymentById(GetPaymentRequest request, StreamObserver<PaymentResponse> responseObserver) {
-        log.info("Received gRPC GetPaymentById request for payment ID: {}", request.getPaymentId());
+        int paymentId = request.getPaymentId();
+        log.info("Received gRPC GetPaymentById request for payment ID: {}", paymentId);
 
         try {
-            PaymentResponse response = paymentService.getPaymentById(request.getPaymentId());
+            PaymentResponse response = paymentService.getPaymentById(paymentId);
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -69,17 +70,37 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
             responseObserver.onError(e);
         }
     }
+    @Override
+    public void calculateTotalCost(PaymentRequest request,
+                                   io.grpc.stub.StreamObserver<TotalCostResponse> responseObserver) {
+        try {
+            TotalCostResponse resp = paymentService.TotalCost(request);
+            responseObserver.onNext(resp);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error in CalculateTotalCost", e);
+            responseObserver.onNext(TotalCostResponse.newBuilder()
+                    .setItemCost(0)
+                    .setHstRate(0.0)
+                    .setHstAmount(0.0)
+                    .setTotalCost(0.0)
+                    .setMessage("Error: " + e.getMessage())
+                    .build());
+            responseObserver.onCompleted();
+        }
+    }
 
     /**
      * Get payment history for a user
      */
     @Override
     public void getPaymentHistory(PaymentHistoryRequest request, StreamObserver<PaymentHistoryResponse> responseObserver) {
+        int userId = request.getUserId();
         log.info("Received gRPC GetPaymentHistory request for user: {}", request.getUserId());
 
         try {
             List<PaymentResponse> payments = paymentService.getPaymentHistory(
-                    request.getUserId(),
+                    userId,
                     request.getPage(),
                     request.getSize()
             );
@@ -101,8 +122,8 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
 
     private String validateRequest(PaymentRequest r) {
         if (!r.hasUserInfo()) return "Missing user information.";
-        if (r.getUserInfo().getUserId().isBlank()) return "Missing userId.";
-        if (r.getItemId().isBlank()) return "Missing itemId.";
+        if (r.getUserInfo().getUserId() <= 0) return "Missing or invalid userId.";
+        if (r.getItemId() <= 0) return "Missing or invalid itemId.";
         if (r.getItemCost() < 0) return "itemCost must be non-negative.";
         if (!r.hasShippingInfo()) return "Missing shipping info.";
         if (!r.hasCreditCardInfo()) return "Missing credit card info.";

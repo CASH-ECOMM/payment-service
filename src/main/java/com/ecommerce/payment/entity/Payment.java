@@ -26,14 +26,14 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private PaymentStatus status = PaymentStatus.PENDING;
-    @Column(name = "payment_id", updatable = false, nullable = false)
-    private String paymentId;
+    @Column(name = "payment_id", updatable = false, nullable = false, unique = true)
+    private Integer paymentId;
 
     @Column(name = "user_id", nullable = false)
-    private String userId;
+    private Integer userId;
 
     @Column(name = "item_id", nullable = false)
-    private String itemId;
+    private Integer itemId;
 
     @Column(name = "item_cost", nullable = false)
     private Integer itemCost;
@@ -81,8 +81,9 @@ public class Payment {
         if (paymentStatus == null) {
             paymentStatus = PaymentStatus.PROCESSING;
         }
-        if (paymentId == null || paymentId.isBlank()) {
-            paymentId = "PAY-" + UUID.randomUUID();
+        if (paymentId == null ) {
+            paymentId = java.util.concurrent.ThreadLocalRandom.current()
+                    .nextInt(100_000_000, Integer.MAX_VALUE);
         }
     }
 

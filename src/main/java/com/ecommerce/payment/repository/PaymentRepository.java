@@ -18,17 +18,17 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     /**
      * Find payment by payment ID
      */
-    Optional<Payment> findByPaymentId(String paymentId);
+    Optional<Payment> findByPaymentId(Integer paymentId);
 
     /**
      * Find all payments for a specific user
      */
-    List<Payment> findByUserId(String userId);
+    List<Payment> findByUserId(Integer userId);
 
     /**
      * Find all payments for a specific user with pagination
      */
-    Page<Payment> findByUserId(String userId, Pageable pageable);
+    Page<Payment> findByUserId(Integer userId, Pageable pageable);
 
     /**
      * Find payments by status
@@ -38,7 +38,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     /**
      * Find payments by user and status
      */
-    List<Payment> findByUserIdAndPaymentStatus(String userId, Payment.PaymentStatus status);
+    List<Payment> findByUserIdAndPaymentStatus(Integer userId, Payment.PaymentStatus status);
 
     /**
      * Find payments within a date range
@@ -52,13 +52,13 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     /**
      * Find payments for a specific item
      */
-    List<Payment> findByItemId(String itemId);
+    List<Payment> findByItemId(Integer itemId);
 
     /**
      * Get total amount paid by a user
      */
     @Query("SELECT SUM(p.totalAmount) FROM Payment p WHERE p.userId = :userId AND p.paymentStatus = 'COMPLETED'")
-    Double getTotalAmountPaidByUser(@Param("userId") String userId);
+    Double getTotalAmountPaidByUser(@Param("userId") Integer userId);
 
     /**
      * Count payments by status

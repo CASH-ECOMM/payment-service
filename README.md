@@ -1,51 +1,97 @@
 # Payment Service
 
-gRPC-based microservice for managing payment operations, including transaction processing, payment validation, and integration with external payment gateways.
+Payment microservice that processes payments and exposes both HTTP (Spring Boot) and gRPC endpoints.
 
 ## Quick Start
 
-### 1. Setup Environment Variables
+### 1. Prerequisites
+- Java 17
+- Maven 3.9+
+- Docker & Docker Compose (for containerized deployment)
+- PostgreSQL (local or via Docker)
 
-```bash
-cp .env.example .env
+### 2. Running with Maven
+
+Ensure Java 17 is active first
+- macOS (zsh):
+```zsh
+# Use macOS Java selector to point JAVA_HOME to JDK 17 for this session
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Verify
+java -version
+mvn -v
 ```
 
-Edit `.env` with your configuration (database credentials, payment gateway keys, etc.).
+- Windows PowerShell:
+```powershell
+# Set for current PowerShell session (adjust the JDK path to your install)
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
-### 2. Running with CLI
-
-**Build the project:**
-```bash
-mvn clean package
+# Verify
+java -version
+mvn -v
 ```
 
-**Run the service:**
-```bash
-java -jar target/payment-service-*.jar
+- Windows CMD:
+```bat
+REM Set for current CMD session (adjust path to where JDK 17 is installed)
+set JAVA_HOME=C:\Program Files\Java\jdk-17
+set PATH=%JAVA_HOME%\bin;%PATH%
+
+REM Verify
+java -version
+mvn -v
 ```
 
-Service will start on `localhost:8083` for REST API and `localhost:9090` for gRPC.
+Build the application:
+```bash
+./mvnw clean package -DskipTests
+```
+
+Run the service:
+```bash
+./mvnw spring-boot:run
+```
+
+Service will start at:
+- HTTP: http://localhost:8083
+- gRPC: localhost:50053
 
 ### 3. Running with Docker
 
+Build and run with Docker Compose (uses the included Dockerfile and docker-compose.yml):
 ```bash
-docker-compose up --build
+cp .env.example .env
+# adjust values if needed
+
+docker compose up --build
 ```
 
-This starts both the payment service and PostgreSQL database.
+Stop the service:
+```bash
+docker compose down
+```
 
-## Features
+## API Documentation
 
-- **ProcessPayment** - Handle payment transactions securely.
-- **ValidatePayment** - Verify payment details and status.
-- **RefundPayment** - Process refunds for completed transactions.
-- **GetPaymentDetails** - Retrieve payment information by transaction ID.
-- **Integration** - Connect with external payment gateways (e.g., Stripe, PayPal).
+Swagger UI:
+```
+http://localhost:8083/swagger-ui.html
+```
+
+OpenAPI JSON spec:
+```
+http://localhost:8083/api-docs
+```
 
 ## Tech Stack
-
-- Java / Spring Boot
-- gRPC / Protocol Buffers
-- PostgreSQL
-- Docker / Docker Compose
-- Maven for build automation
+- Spring Boot 3 (HTTP endpoints)
+- gRPC Server (Payment RPCs)
+- Protocol Buffers (IDL)
+- SpringDoc OpenAPI (docs)
+- PostgreSQL (persistence)
+- Maven (build)
+- Docker / Docker Compose (containerization)

@@ -18,12 +18,17 @@ import java.time.LocalDateTime;
 public class Receipt {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "receipt_id", updatable = false, nullable = false)
-    private String receiptId;
+    private Integer receiptId;
 
     @OneToOne
-    @JoinColumn(name = "payment_id", nullable = false, unique = true)
+    @JoinColumn(
+            name = "payment_id",                 // column in receipts table
+            referencedColumnName = "payment_id", // CHANGED: join to Payment.paymentId (int)
+            nullable = false,
+            unique = true
+    )
     private Payment payment;
 
     @Column(name = "receipt_number", unique = true, nullable = false)
@@ -36,7 +41,7 @@ public class Receipt {
     private String customerAddress;
 
     @Column(name = "item_id", nullable = false)
-    private String itemId;
+    private Integer itemId;
 
     @Column(name = "item_cost", nullable = false)
     private Integer itemCost;

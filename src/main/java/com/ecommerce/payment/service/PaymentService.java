@@ -56,16 +56,17 @@ public class PaymentService {
         return v.setScale(SCALE, ROUND);
     }
     //    Helper for throw error for number
-    private int coerceStreetNumber(int raw) {
-        if (raw <= 0) {
-            throw new IllegalArgumentException("Street number must be a positive integer.");
-        }
+//    private int coerceStreetNumber(int raw) {
+//        if (raw <= 0) {
+//            throw new IllegalArgumentException("Street number must be a positive integer.");
+//        }
+//
+//        if (raw > 999999) {
+//            throw new IllegalArgumentException("Street number is too large.");
+//        }
+//        return raw;
+//    }
 
-        if (raw > 999999) {
-            throw new IllegalArgumentException("Street number is too large.");
-        }
-        return raw;
-    }
     /**
      * Process payment request - Main business logic for Use Case 5
      */
@@ -86,11 +87,6 @@ public class PaymentService {
             }
 
 
-            // Calculate total cost
-//            double itemCost = request.getItemCost();
-//            double shippingCost = calculateShippingCost(request.getShippingInfo());
-//            double hstAmount = (itemCost + shippingCost) * hstRate;
-//            double totalAmount = itemCost + shippingCost + hstAmount;
 
             // ints from proto (whole dollars)
             int itemCostInt     = request.getItemCost();                 // already int32
@@ -148,13 +144,14 @@ public class PaymentService {
     /**
      * Get payment by ID
      */
-    public PaymentResponse getPaymentById(String paymentId) {
+    @Transactional(readOnly = true)
+    public PaymentResponse getPaymentById(int paymentId) {
         log.info("Retrieving payment with ID: {}", paymentId);
 
         return paymentRepository.findByPaymentId(paymentId)
-                .map(payment -> {
-                    Receipt receipt = receiptRepository.findByPaymentId(paymentId).orElse(null);
-                    return buildSuccessResponse(payment, receipt);
+                .map(p -> {
+                    var receipt = receiptRepository.findByPaymentId(paymentId).orElse(null);
+                    return buildSuccessResponse(p, receipt);
                 })
                 .orElseGet(() -> buildErrorResponse("Payment not found with ID: " + paymentId));
     }
@@ -162,7 +159,7 @@ public class PaymentService {
     /**
      * Get payment history for a user
      */
-    public List<PaymentResponse> getPaymentHistory(String userId, int page, int size) {
+    public List<PaymentResponse> getPaymentHistory(int userId, int page, int size) {
         log.info("Retrieving payment history for user: {}", userId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -193,12 +190,59 @@ public class PaymentService {
     /**
      * Calculate shipping cost with surcharge for expedited shipping
      */
-    private int calculateShippingCost(ShippingInfo shippingInfo) {
+    public int calculateShippingCost(ShippingInfo shippingInfo) {
         int baseCost = shippingInfo.getShippingCost(); // proto int32 dollars
         if (shippingInfo.getShippingType() == ShippingType.EXPEDITED) {
             return baseCost + expeditedSurcharge;      // int dollars
         }
         return baseCost;
+    }
+    // compute total (item + shipping + HST) using BigDecimal helpers
+    public double calculateTotalCost(PaymentRequest request) {
+        // guard against negative item cost (optional, you can also throw)
+        int itemCostInt = Math.max(0, request.getItemCost());
+
+        // server is source-of-truth for shipping cost
+        int shippingCostInt = calculateShippingCost(request.getShippingInfo());
+
+        BigDecimal itemBD     = money(itemCostInt);
+        BigDecimal shippingBD = money(shippingCostInt);
+        BigDecimal subTotalBD = itemBD.add(shippingBD);
+
+        BigDecimal hstBD   = subTotalBD
+                .multiply(BigDecimal.valueOf(hstRate))
+                .setScale(SCALE, ROUND);
+
+        BigDecimal totalBD = subTotalBD
+                .add(hstBD)
+                .setScale(SCALE, ROUND);
+
+        return totalBD.doubleValue();
+    }
+
+    public TotalCostResponse TotalCost(PaymentRequest request) {
+        int itemCostInt     = Math.max(0, request.getItemCost());
+        int shippingCostInt = calculateShippingCost(request.getShippingInfo()); // applies expedited surcharge
+
+        BigDecimal itemBD     = money(itemCostInt);
+        BigDecimal shippingBD = money(shippingCostInt);
+        BigDecimal subTotalBD = itemBD.add(shippingBD);
+
+        BigDecimal hstBD = subTotalBD
+                .multiply(BigDecimal.valueOf(hstRate))
+                .setScale(SCALE, ROUND);
+
+        BigDecimal totalBD = subTotalBD
+                .add(hstBD)
+                .setScale(SCALE, ROUND);
+
+        return TotalCostResponse.newBuilder()
+                .setTotalCost(totalBD.doubleValue())
+                .setMessage("Total cost calculated")
+                .setItemCost(itemCostInt)
+                .setHstRate(hstRate)
+                .setHstAmount(hstBD.doubleValue())
+                .build();
     }
 
     /**
@@ -211,7 +255,7 @@ public class PaymentService {
             double hstAmount,
             double totalAmount
     ) {
-        int streetNumber = coerceStreetNumber(request.getUserInfo().getNumber());
+        String streetNumber = String.valueOf(request.getUserInfo().getNumber());
 
         Address address = Address.builder()
                 .firstName(request.getUserInfo().getFirstName())
@@ -271,7 +315,7 @@ public class PaymentService {
         return Receipt.builder()
                 .payment(payment)
                 .customerName(payment.getAddress().getFirstName() + " " + payment.getAddress().getLastName())
-                .customerAddress(payment.getAddress().getFormattedAddress())
+                .customerAddress(payment.getAddress().getFullAddress())
                 .itemId(payment.getItemId())
                 .itemCost(payment.getItemCost())          // keep as double (2dp)
                 .shippingCost(payment.getShippingCost())      // keep as double (2dp)

@@ -22,7 +22,7 @@ spring.jpa.properties.hibernate.use_sql_comments=${HIBERNATE_SQL_COMMENTS:true}
 
 # ==== gRPC Server ====
 grpc.server.address=${GRPC_ADDRESS:0.0.0.0}
-grpc.server.port=${GRPC_PORT:9090}
+grpc.server.port=${GRPC_PORT:50053}
 
 # ==== Logging ====
 logging.level.root=${LOG_LEVEL_ROOT:INFO}

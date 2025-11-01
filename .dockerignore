@@ -1,0 +1,28 @@
+# Maven build output
+/target
+
+# Maven local repo cache (we don't need to send it to Docker context)
+.mvn/
+.mvn/wrapper/
+**/.mvn/
+
+# Git
+.git
+.gitignore
+
+# IDEs and editors
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
+# Node / frontend (if any)
+node_modules/
+

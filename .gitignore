@@ -1,0 +1,28 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Java Build
+/target/
+*.class
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+
+#  Environment/Sensitive
+application.properties
+application.yml
+
+# Maven/Gradle
+/.mvn/
+/.gradle/
+/build/
+
+# Ignore local environment files
+.env
+*.env
+application.properties
+application-secret.properties

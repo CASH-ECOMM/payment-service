@@ -12,6 +12,40 @@ Payment microservice that processes payments and exposes both HTTP (Spring Boot)
 
 ### 2. Running with Maven
 
+Ensure Java 17 is active first
+- macOS (zsh):
+```zsh
+# Use macOS Java selector to point JAVA_HOME to JDK 17 for this session
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Verify
+java -version
+mvn -v
+```
+
+- Windows PowerShell:
+```powershell
+# Set for current PowerShell session (adjust the JDK path to your install)
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+
+# Verify
+java -version
+mvn -v
+```
+
+- Windows CMD:
+```bat
+REM Set for current CMD session (adjust path to where JDK 17 is installed)
+set JAVA_HOME=C:\Program Files\Java\jdk-17
+set PATH=%JAVA_HOME%\bin;%PATH%
+
+REM Verify
+java -version
+mvn -v
+```
+
 Build the application:
 ```bash
 ./mvnw clean package -DskipTests

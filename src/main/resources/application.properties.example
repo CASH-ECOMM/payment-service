@@ -1,28 +1,32 @@
+# ================================
+# Payment Service - Config
+# ================================
+
 # ==== App ====
 spring.application.name=payment-service
 server.port=${SERVER_PORT:8083}
 
 # ==== PostgreSQL ====
-spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/payment_db}
-spring.datasource.username=${DB_USERNAME:postgres}
-spring.datasource.password=${DB_PASSWORD:}
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/payment_db}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME:postgres}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:}
 # driver is auto-detected; keep if you prefer explicit
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # ==== JPA/Hibernate ====
 # Hibernate 6 can auto-detect dialect; if you want explicit, pick ONE of the two below (not both)
 # spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.properties.hibernate.dialect=${HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
-spring.jpa.hibernate.ddl-auto=${JPA_DDL_AUTO:update}
-spring.jpa.show-sql=${JPA_SHOW_SQL:true}
+spring.jpa.properties.hibernate.dialect=${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.PostgreSQLDialect}
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL:true}
 
 
-spring.jpa.properties.hibernate.format_sql=${HIBERNATE_FORMAT_SQL:true}
-spring.jpa.properties.hibernate.use_sql_comments=${HIBERNATE_SQL_COMMENTS:true}
+spring.jpa.properties.hibernate.format_sql=${SPRING_JPA_HIBERNATE_FORMAT_SQL:true}
+spring.jpa.properties.hibernate.use_sql_comments=${SPRING_JPA_HIBERNATE_USE_SQL_COMMENTS:true}
 
 # ==== gRPC Server ====
-grpc.server.address=${GRPC_ADDRESS:0.0.0.0}
-grpc.server.port=${GRPC_PORT:50053}
+grpc.server.address=${GRPC_SERVER_ADDRESS:0.0.0.0}
+grpc.server.port=${GRPC_SERVER_PORT:50053}
 
 # ==== Logging ====
 logging.level.root=${LOG_LEVEL_ROOT:INFO}

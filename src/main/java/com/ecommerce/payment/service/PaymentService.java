@@ -86,6 +86,27 @@ public class PaymentService {
                 return buildErrorResponse("Payment validation failed: " + validationResult.getErrors());
             }
 
+            //Check user can't pay more than once for same item.
+            final int uid = request.getUserInfo().getUserId();
+            final int itemId = request.getItemId();
+
+            boolean already = paymentRepository.existsByUserIdAndItemIdAndPaymentStatusIn(
+                    uid, itemId,
+                    java.util.List.of(
+                            Payment.PaymentStatus.PROCESSING,
+                            Payment.PaymentStatus.COMPLETED));
+
+            if (already) {
+                // Try to return the existing COMPLETED payment + its receipt, if present
+                var existingOpt =
+                        paymentRepository.findTopByUserIdAndItemIdAndPaymentStatusOrderByCreatedAtDesc(
+                                uid, itemId, Payment.PaymentStatus.COMPLETED);
+
+                var receiptOpt = existingOpt
+                        .flatMap(p -> receiptRepository.findByPaymentId(p.getPaymentId()));
+
+                return duplicateResponse(existingOpt.orElse(null), receiptOpt.orElse(null));
+            }
 
 
             // ints from proto (whole dollars)
@@ -147,13 +168,26 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentResponse getPaymentById(int paymentId) {
         log.info("Retrieving payment with ID: {}", paymentId);
+        var pOpt = paymentRepository.findByPaymentId(paymentId);
+        if (pOpt.isPresent()) {
+            var p = pOpt.get();
+            var receipt = receiptRepository.findByPaymentId(paymentId).orElse(null);
+            return buildSuccessResponse(p, receipt);
+        }
 
-        return paymentRepository.findByPaymentId(paymentId)
-                .map(p -> {
-                    var receipt = receiptRepository.findByPaymentId(paymentId).orElse(null);
-                    return buildSuccessResponse(p, receipt);
-                })
-                .orElseGet(() -> buildErrorResponse("Payment not found with ID: " + paymentId));
+        var rOpt = receiptRepository.findById(paymentId); // JPA default findById(@Id)
+        if (rOpt.isPresent()) {
+            var r = rOpt.get();
+            var p = r.getPayment(); // ensure Receipt has @ManyToOne Payment
+            return buildSuccessResponse(p, r);
+        }
+        return buildErrorResponse("Not found. No payment with ID " + paymentId + " and no receipt with ID " + paymentId);
+//        return paymentRepository.findByPaymentId(paymentId)
+//                .map(p -> {
+//                    var receipt = receiptRepository.findByPaymentId(paymentId).orElse(null);
+//                    return buildSuccessResponse(p, receipt);
+//                })
+//                .orElseGet(() -> buildErrorResponse("Payment not found with ID: " + paymentId));
     }
 
     /**
@@ -360,6 +394,36 @@ public class PaymentService {
         }
 
         return responseBuilder.build();
+    }
+    //standard response for duplicate purchase attempts
+    private PaymentResponse duplicateResponse(Payment existing, Receipt receipt) {
+        String now = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        PaymentResponse.Builder b = PaymentResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("You already purchased this item. Duplicate payment is not allowed.")
+                .setTransactionDate(now);
+
+        if (existing != null) {
+            b.setPaymentId(existing.getPaymentId());
+        }
+        if (existing != null && receipt != null) {
+            ReceiptInfo ri = ReceiptInfo.newBuilder()
+                    .setReceiptId(receipt.getReceiptId())
+                    .setFirstName(existing.getAddress().getFirstName())
+                    .setLastName(existing.getAddress().getLastName())
+                    .setFullAddress(existing.getAddress().getFullAddress())
+                    .setItemCost(existing.getItemCost())
+                    .setShippingCost(existing.getShippingCost())
+                    .setHstAmount(existing.getHstAmount())
+                    .setTotalPaid(existing.getTotalAmount())
+                    .setItemId(existing.getItemId())
+                    .build();
+            b.setReceiptInfo(ri)
+                    .setShippingMessage("The item will be shipped in " + existing.getEstimatedShippingDays() + " days");
+        }
+        return b.build();
     }
 
     /**

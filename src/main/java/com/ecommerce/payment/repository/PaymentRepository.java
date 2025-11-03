@@ -11,9 +11,19 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
+import java.util.Optional;
+
+
+
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, String> {
+    boolean existsByUserIdAndItemIdAndPaymentStatusIn(
+            Integer userId, Integer itemId, Collection<Payment.PaymentStatus> statuses);
+
+    Optional<Payment> findTopByUserIdAndItemIdAndPaymentStatusOrderByCreatedAtDesc(
+            Integer userId, Integer itemId, Payment.PaymentStatus status);
 
     /**
      * Find payment by payment ID

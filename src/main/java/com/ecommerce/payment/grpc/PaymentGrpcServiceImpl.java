@@ -55,16 +55,13 @@ public class PaymentGrpcServiceImpl extends PaymentServiceGrpc.PaymentServiceImp
      */
     @Override
     public void getPaymentById(GetPaymentRequest request, StreamObserver<PaymentResponse> responseObserver) {
-        int paymentId = request.getPaymentId();
-        log.info("Received gRPC GetPaymentById request for payment ID: {}", paymentId);
+        int Id = request.getPaymentId();
+        log.info("Received gRPC GetPaymentById request for payment ID: {}", Id);
 
         try {
-            PaymentResponse response = paymentService.getPaymentById(paymentId);
-
+            PaymentResponse response = paymentService.getPaymentById(Id);
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-
-            log.info("GetPaymentById gRPC call completed successfully");
         } catch (Exception e) {
             log.error("Error in GetPaymentById gRPC call", e);
             responseObserver.onError(e);

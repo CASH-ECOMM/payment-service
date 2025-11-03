@@ -6,7 +6,7 @@ services:
     container_name: payment-service
     ports:
       - "8083:8083"   # HTTP (Spring Boot)
-      - "50054:50051" # gRPC
+      - "50053:50053" # gRPC
     env_file:
       - .env
 
@@ -29,9 +29,11 @@ services:
     env_file:
       - .env
     environment:
+      PGPORT: 5435
       POSTGRES_DB: ${POSTGRES_DB:-payment_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-2025}
+
     ports:
       - "5435:5435"
     volumes:
